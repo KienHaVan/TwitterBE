@@ -1,12 +1,13 @@
 import { PrismaClient } from '@prisma/client';
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
+import { sendEmailToken } from '../services/emailService';
 const prisma = new PrismaClient();
 const router = Router();
 
 const EMAIL_TOKEN_EXPIRATION_MINUTES = 10;
 const AUTHENTICATION_EXPIRATION_MINUTES_HOURS = 12;
-const JWT_SECRET = 'Kevin';
+const JWT_SECRET = process.env.JWT_SECRET || 'SUPER SECRET';
 
 function generateEmailToken(): string {
   return Math.floor(1000000 + Math.random() * 9000000).toString();
@@ -27,7 +28,7 @@ router.post('/login', async (req, res) => {
     new Date().getTime() + EMAIL_TOKEN_EXPIRATION_MINUTES * 60 * 1000
   );
   try {
-    const createdToken = await prisma.token.create({
+    await prisma.token.create({
       data: {
         type: 'EMAIL',
         emailToken,
@@ -40,6 +41,7 @@ router.post('/login', async (req, res) => {
         },
       },
     });
+    await sendEmailToken(email, emailToken);
     res.sendStatus(200);
   } catch (error) {
     res.status(400).json({ error: 'Something went wrong' });
